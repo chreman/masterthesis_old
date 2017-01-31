@@ -33,3 +33,12 @@ Two scripts and one stylesheet do the work. For faster i/o this is best done on 
 * Point to config files and bootstrap scripts
 * Point to job and add arguments
 * Some security configurations
+
+### What is in workflows-ck?
+
+* `workflow.py`: Contains the main analytical workflow for pySpark
+* `bootstrap_python.sh`: What each computing node has to do at startup, e.g. install additional python libraries or a nltk-corpus file
+* `gazetter.py`: A custom entity recognizer - still not working as intended
+* `transformers.py`: Custom transformers for Spark, e.g. sentence tokenizer
+* `spark-config.json`: Spark config file specified for this analysis
+* `ConsecutiveNPTagger.pkl`: Prepared tagger so that it can be re-used - will be replaced at some point by the custom gazetteer
