@@ -1,5 +1,3 @@
-import nltk
-
 from pyspark import keyword_only  ## < 2.0 -> pyspark.ml.util.keyword_only
 from pyspark.ml import Transformer
 from pyspark.ml.param.shared import HasInputCol, HasOutputCol, Param
@@ -32,6 +30,9 @@ class NLTKWordPunctTokenizer(Transformer, HasInputCol, HasOutputCol):
         stopwords = self.getStopwords()
 
         def f(s):
+            import nltk
+            nltk.data.path.append("~/nltk_data")
+            nltk.data.path.append("/home/hadoop/nltk_data")
             tokens = nltk.tokenize.wordpunct_tokenize(s)
             return [t for t in tokens if t.lower() not in stopwords]
 
@@ -89,6 +90,8 @@ class SentTokenizer(Transformer, HasInputCol, HasOutputCol):
     def _transform(self, df):
         def sent_tokenize(x):
             import nltk
+            nltk.data.path.append("~/nltk_data")
+            nltk.data.path.append("/home/hadoop/nltk_data")
             return nltk.sent_tokenize(x)
 
         udf_sent_tokenize = udf(sent_tokenize, ArrayType(StringType()))
@@ -110,6 +113,8 @@ class TripleExtractor(Transformer, HasInputCol, HasOutputCol):
     def _transform(self, df):
         def get_relations(sentence):
             import nltk
+            nltk.data.path.append("~/nltk_data")
+            nltk.data.path.append("/home/hadoop/nltk_data")
             import re
             import itertools
             sentence = nltk.word_tokenize(sentence)
@@ -125,6 +130,8 @@ class TripleExtractor(Transformer, HasInputCol, HasOutputCol):
         def get_custom_relations(sentence, patterns):
             import gazetteer
             import nltk
+            nltk.data.path.append("~/nltk_data")
+            nltk.data.path.append("/home/hadoop/nltk_data")
             import re
             g = gazetteer.Gazetteer(patterns, nltk.pos_tag, nltk.wordpunct_tokenize)
             tree = g.parse(sentence)
