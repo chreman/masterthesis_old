@@ -190,12 +190,17 @@ def main(args):
 
     result_df = result_df.select(['doi', 'sentences', 'features']).withColumn('hits', udf_boolean_occurrence(result_df['features']))
     # output = result_df.select(['doi', 'title', 'features']).withColumn('hits', udf_boolean_occurrence(result_df['features']))
+    logger.info('Getting result_df')
     output = result_df.filter(result_df['hits'] == True)
     logger.info('Output filtered, number of entries with matches: %d' %output.count())
     output = output.withColumn('entity_matches', udf_map_sv2entities(output['features']))
+    logger.info('Mapping back to entities.')
     output = output.withColumn('entity_counts', udf_total_count(output['entity_matches']))
+    logger.info('Counting entities.')
     output = output.withColumn('triples', udf_get_triples(output['sentences']))
+    logger.info('Getting triples.')
     output = output.withColumn('triples_counts', udf_total_count(output['triples']))
+    logger.info('Counting triples.')
     output.cache()
 
     ##########################
@@ -204,6 +209,7 @@ def main(args):
                 .filter(output['entity_counts'] >= int(args.entity_counts)) \
                 .filter(output['triples_counts'] >= int(args.triples_counts)) \
                 .orderBy(['triples_counts'], ascending=[0])
+    logger.info('Writing output to %s.' %args.output)
     output.write.json(args.output)
 
     logger.info('Final results filtered, number of results: %d' %output.count())
