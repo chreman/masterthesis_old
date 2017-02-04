@@ -43,7 +43,7 @@ Via AWS EMR Console:
     1. Spark-submit options: add `--py-files s3://bucket/path/pyfiles.py` for your files that you want to import from in the spark-application
     1. the arguments you provide to the application,
     1. an action on failure (I mostly terminate the cluster, except I want to ssh to master or some node after failure for manual inspection).
-    It should look similar to this
+    It should look similar to this:
     ![step 1 software](step1_software.png)
 1. Choose hardware
   1. Network and EC2 Subnet can be left at defaults for most cases
@@ -72,6 +72,7 @@ You can copy files to S3 with the AWS Command line tool, once installed and conf
 * `bootstrap_python.sh`: What each computing node has to do at startup, e.g. install additional python libraries or a nltk-corpus file
 * `gazetter.py`: A custom entity recognizer - still not working as intended
 * `transformers.py`: Custom transformers for Spark, e.g. sentence tokenizer
+* `pyfiles.zip`: A zip file containing `gazetteer.py` and `transformers.py`
 * `spark-config.json`: Spark config file specified for this analysis
 * `ConsecutiveNPTagger.pkl`: Prepared tagger so that it can be re-used - will be replaced at some point by the custom gazetteer
 * `taxons.csv`: A ;-separated csv file with `taxon name; taxon name, taxon alias` structure, e.g. `aacanthocnema luehmannii;aacanthocnema luehmannii`
