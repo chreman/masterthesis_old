@@ -213,7 +213,7 @@ if __name__ == '__main__':
     parser.add_argument('--entity-counts', dest='entity_counts', help='min_number of entity counts')
     parser.add_argument('--triples-counts', dest='triples_counts', help='min_number of triples counts')
     parser.add_argument('--entities', dest='entities', help='relative or absolute path of the entities file')
-    parser.add_argument('--tagger', dest='entities', help='relative or absolute path of the tagger file')
+    parser.add_argument('--tagger', dest='tagger', help='relative or absolute path of the tagger file')
     parser.add_argument('--logfile', dest='logfile', help='relative or absolute path of the logfile')
     parser.add_argument('--sample', dest='sample', help='fraction of data to use as sample')
     parser.add_argument('--awsAccessKeyID', dest='awsAccessKeyID', help='awsAccessKeyID')
