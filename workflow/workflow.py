@@ -65,7 +65,7 @@ def main(args):
     ########################
     # Adding additional files
 
-    with open(SparkFiles.get(args.entities), "r") as infile:
+    with open(SparkFiles.get("entities.csv"), "r") as infile:
         reader = csv.reader(infile, delimiter=';', quotechar='"')
         rows = reader
         entities = {}
