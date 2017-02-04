@@ -25,7 +25,8 @@ Two scripts and one stylesheet do the work. For faster i/o this is best done on 
 1. Start an instance
 1. `scp -i key.pem preprocessing/JATS.json ubuntu@public.dns.amazonaws.com:~/JATS.json`, also for `preprocessing/xml2json.py` and `preprocessing/eupmc2s3.py`
 1. `ssh -i key.pem ubuntu@public.dns.amazonaws.com`
-1. `python3 eupmc2s3.py`
+1. `aws configure` to set it up with your credentials
+1. run `python3 eupmc2s3.py`
 1. check on S3 interface if data has arrived as expected
 
 ### Setting up a cluster
