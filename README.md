@@ -64,6 +64,10 @@ Via AWS EMR Console:
 
 ### What is in workflows-ck?
 
+You can copy files to S3 with the AWS Command line tool, once installed and configured:
+
+`aws s3 sync workflow s3://your-bucket/your-folder`
+
 * `workflow.py`: Contains the main analytical workflow for pySpark
 * `bootstrap_python.sh`: What each computing node has to do at startup, e.g. install additional python libraries or a nltk-corpus file
 * `gazetter.py`: A custom entity recognizer - still not working as intended

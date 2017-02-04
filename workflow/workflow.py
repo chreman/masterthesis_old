@@ -32,16 +32,20 @@ import nltk
 from gazetteer import ConsecutiveNPChunker
 from transformers import StringListAssembler, ColumnExploder, ColumnSelector, SentTokenizer
 
-FORMAT = '%(asctime)-15s %(message)s'
-logging.basicConfig(format=FORMAT, filename='spark.log', level=logging.INFO)
-logger = logging.getLogger('sparklogger')
 
 
 def main(args):
+    FORMAT = '%(asctime)-15s %(message)s'
+    if args.logfile:
+        logging.basicConfig(format=FORMAT, level=logging.INFO, filename=args.logfile)
+    else:
+        logging.basicConfig(format=FORMAT, level=logging.INFO)
+    logger = logging.getLogger('sparklogger')
     logger.info('Beginning workflow')
     conf = SparkConf()
-    conf.set("spark.hadoop.fs.s3.awsAccessKeyID", args.awsAccessKeyID)
-    conf.set("spark.hadoop.fs.s3.awsSecretAccessKey", args.awsSecretAccessKey)
+    if (args.awsAccessKeyID and args.awsSecretAccessKey):
+        conf.set("spark.hadoop.fs.s3.awsAccessKeyID", args.awsAccessKeyID)
+        conf.set("spark.hadoop.fs.s3.awsSecretAccessKey", args.awsSecretAccessKey)
     sc = SparkContext(conf=conf)
 
     sc.addFile(args.tagger)
@@ -50,8 +54,11 @@ def main(args):
     sqlContext = SQLContext(sc)
     RDD_jsonstrings = sc.textFile(args.input)
     RDD_dicts = RDD_jsonstrings.map(json.loads)
+    logger.info('Loading RDDs from %s.' %args.input)
     df = sqlContext.createDataFrame(RDD_dicts, samplingRatio=0.01)
     df = df.dropDuplicates(['doi'])
+    if args.sample:
+        df = df.sample(False, float(args.sample), 42)
     df.cache()
     logger.info('Base df created, papers in sample: %d' %df.count())
 
@@ -207,6 +214,8 @@ if __name__ == '__main__':
     parser.add_argument('--triples-counts', dest='triples_counts', help='min_number of triples counts')
     parser.add_argument('--entities', dest='entities', help='relative or absolute path of the entities file')
     parser.add_argument('--tagger', dest='entities', help='relative or absolute path of the tagger file')
+    parser.add_argument('--logfile', dest='logfile', help='relative or absolute path of the logfile')
+    parser.add_argument('--sample', dest='sample', help='fraction of data to use as sample')
     parser.add_argument('--awsAccessKeyID', dest='awsAccessKeyID', help='awsAccessKeyID')
     parser.add_argument('--awsSecretAccessKey', dest='awsSecretAccessKey', help='awsSecretAccessKey')
     args = parser.parse_args()
