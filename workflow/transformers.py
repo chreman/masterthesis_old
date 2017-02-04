@@ -138,7 +138,7 @@ class TripleExtractor(Transformer, HasInputCol, HasOutputCol):
             semirels = nltk.sem.relextract.tree2semi_rel(tree)
             relations = nltk.sem.relextract.semi_rel2reldict(semirels)
             triples = []
-            for rels in relations:
+            for rel in relations:
                 new_triple = (rel.get("subjtext"), rel.get("filler"), rel.get("objtext"))
                 triples.append(new_triple)
             return triples

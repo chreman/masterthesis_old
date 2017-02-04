@@ -27,7 +27,10 @@ from pyspark.ml import Pipeline
 from pyspark.ml.feature import Tokenizer, RegexTokenizer, StopWordsRemover, CountVectorizer, VectorSlicer, NGram, VectorAssembler
 
 import pandas as pd
+
 import nltk
+nltk.data.path.append("~/nltk_data")
+nltk.data.path.append("/home/hadoop/nltk_data")
 
 from gazetteer import ConsecutiveNPChunker
 from transformers import StringListAssembler, ColumnExploder, ColumnSelector, SentTokenizer
@@ -156,13 +159,14 @@ def main(args):
     logger.info('Registering udf_total_count.')
     udf_total_count = udf(total_count, IntegerType())
 
-
     train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=['NP'])
     chunker = ConsecutiveNPChunker(train_sents)
     C = sc.broadcast(chunker)
 
     def get_triples(sentence):
         import nltk
+        nltk.data.path.append("~/nltk_data")
+        nltk.data.path.append("/home/hadoop/nltk_data")
         import re
         tagged_sentence = nltk.pos_tag(nltk.wordpunct_tokenize(sentence))
         tree = C.value.parse(tagged_sentence)
