@@ -23,7 +23,7 @@ Two scripts and one stylesheet do the work. For faster i/o this is best done on 
 
 
 1. Start an instance
-1. `scp -i key.pem JATS.json ubuntu@public.dns.amazonaws.com:~/JATS.json`, also for `xml2json.py` and `eupmc2s3.py`
+1. `scp -i key.pem preprocessing/JATS.json ubuntu@public.dns.amazonaws.com:~/JATS.json`, also for `preprocessing/xml2json.py` and `preprocessing/eupmc2s3.py`
 1. `ssh -i key.pem ubuntu@public.dns.amazonaws.com`
 1. `python3 eupmc2s3.py`
 1. check on S3 interface if data has arrived as expected
@@ -59,7 +59,7 @@ Via AWS EMR Console:
     1. add Bootstrap options: `Custom action`: name, script location on S3, and optional arguments
     ![step 3 settings](step3_settings.png)
 1. Security:
-  1. Choose your key par,
+  1. Choose your key pair,
   1. Rest I leave on default settings - if more than 1 user is going to work with the cluster, or data shall be accessed from a different S3-account, this needs attention here
 
 ### What is in workflows-ck?
