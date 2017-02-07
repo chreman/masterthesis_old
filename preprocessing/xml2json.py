@@ -12,12 +12,12 @@ logging.basicConfig(filename='conversion.log',level=logging.DEBUG)
 
 class Converter(object):
     """docstring for Converter"""
-    def __init__(self, inputfolder, outputfolder, style, source, compressed):
+    def __init__(self, inputfolder, outputfolder, style, source, compressed=None):
         self.inputfolder = inputfolder
         self.outputfolder = outputfolder
         self.style = self.load_style(style)
         self.source = source
-        if args.compressed:
+        if compressed:
             self.compressed = compressed
 
     def load_style(self, style):
