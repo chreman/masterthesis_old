@@ -110,7 +110,7 @@ class Converter(object):
     def corexml2json(self, xmlfilepath):
         head, tail = path.split(xmlfilepath)
         filename = path.splitext(path.splitext(tail)[0])[0]
-        if path.isfile(path.join(self.outputfolder, "jsons", filename+".json")):
+        if path.isfile(path.join(self.outputfolder, filename+".json")):
             return
         try:
             with gzip.open(xmlfilepath, "r") as infile:
@@ -121,7 +121,7 @@ class Converter(object):
 
         try:
             for article in root.getchildren():
-                with open(path.join(self.outputfolder, "jsons", filename+".json"), "a") as outfile:
+                with open(path.join(self.outputfolder, filename+".json"), "a") as outfile:
                     jsonfile = self.create_json(article)
                     #json.dump(jsonfile, outfile, allow_nan=False)
                     #outfile.write("\n")
@@ -132,7 +132,7 @@ class Converter(object):
     def plosxml2json(self, xmlfilepath):
         head, tail = path.split(xmlfilepath)
         filename = path.splitext(path.splitext(tail)[0])[0]
-        if path.isfile(path.join(self.outputfolder, "jsons", filename+".json")):
+        if path.isfile(path.join(self.outputfolder, filename+".json")):
             return
         i = 0
         if self.compressed == "gz":
@@ -150,7 +150,7 @@ class Converter(object):
         try:
             article = ET.fromstring(article)
 
-            with open(path.join(self.outputfolder, "jsons", filename+".json"), "a") as outfile:
+            with open(path.join(self.outputfolder, filename+".json"), "a") as outfile:
                 jsonfile = self.create_json(article)
                 #json.dump(jsonfile, outfile, allow_nan=False)
                 #outfile.write("\n")
