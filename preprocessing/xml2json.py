@@ -159,7 +159,7 @@ class Converter(object):
             logging.exception(" ".join([str(e), xmlfilepath]))
 
     def core2json(self):
-        files = [f for f in listdir(args.inputfolder) if path.isfile(path.join(self.inputfolder, f))]
+        files = [f for f in listdir(self.inputfolder) if path.isfile(path.join(self.inputfolder, f))]
         for file in files:
             self.corexml2json(path.join(self.inputfolder, file))
 
