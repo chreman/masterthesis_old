@@ -84,25 +84,17 @@ class Converter(object):
         metadata['cprojectID'] = metadata.get('pmcid')
         return metadata
 
-    def get_fulltext(self, article):
+    def get_texts(self, article):
         ps = article.findall(self.style.get("fulltext"))
+        ps_abs = article.findall(self.style.get("abstract"))
         text = " ".join("".join(p.itertext()) for p in ps)
-        return {"fulltext":text}
-
-    def get_references(self, article):
-        refs = article.findall(self.style.get("references"))
-        references = []
-        for ref in refs:
-            for c in ref.getchildren():
-                references.append(self.metadata2dict(c))
-        return {"references":references}
+        text_abs = " ".join("".join(p.itertext()) for p in ps_abs)
+        return {"fulltext":text, "abstract":text_abs}
 
     def create_json(self, article):
         metadata = self.get_metadata(article)
-        fulltext = self.get_fulltext(article)
-        references = self.get_references(article)
-        article_json = dict(metadata, **fulltext)
-        article_json.update(references)
+        texts = self.get_texts(article)
+        article_json = dict(metadata, **texts)
         article_json = {k.split("}")[1] if k.startswith("{") else k:v for k,v in article_json.items()} # filter out xml-namespaces
         article_json = {k:v for k,v in article_json.items() if not "/" in k} # filter out urls and dois
         return article_json

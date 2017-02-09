@@ -5,6 +5,6 @@
   "meta_journal":".//journal-meta//*",
   "meta_article":".//article-meta",
   "fulltext":".//body//p",
-  "references":".//ref/mixed-citation",
-  "keywordList":".//kwd-group/kwd"
+  "keywordList":".//kwd-group/kwd",
+  "abstract":".//abstract"
 }
