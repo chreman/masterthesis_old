@@ -19,7 +19,7 @@ from collections import OrderedDict
 
 from pyspark import SparkContext, SQLContext, SparkConf
 from pyspark import SparkFiles
-
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import dayofmonth, month, year, to_date
 from pyspark.sql.functions import col, sum, explode, udf, concat, lit
 from pyspark.sql.types import ArrayType, StringType, StructType, StructField, IntegerType, BooleanType, MapType
@@ -45,30 +45,29 @@ def main(args):
         logging.basicConfig(format=FORMAT, level=logging.INFO)
     logger = logging.getLogger('sparklogger')
     logger.info('Beginning workflow')
+
     conf = SparkConf()
     if (args.awsAccessKeyID and args.awsSecretAccessKey):
         conf.set("spark.hadoop.fs.s3.awsAccessKeyID", args.awsAccessKeyID)
         conf.set("spark.hadoop.fs.s3.awsSecretAccessKey", args.awsSecretAccessKey)
     sc = SparkContext(conf=conf)
-
-    sc.addFile(args.tagger)
     sc.addFile(args.entities)
+    spark = SparkSession(sc)
 
-    sqlContext = SQLContext(sc)
-    RDD_jsonstrings = sc.textFile(args.input)
-    RDD_dicts = RDD_jsonstrings.map(json.loads)
-    logger.info('Loading RDDs from %s.' %args.input)
-    df = sqlContext.createDataFrame(RDD_dicts, samplingRatio=0.01)
+    df = spark.read.json(args.input)
     df = df.dropDuplicates(['doi'])
     if args.sample:
         df = df.sample(False, float(args.sample), 42)
     df.cache()
+    if args.debug:
+        df.printSchema()
+        df.explain(True)
     logger.info('Base df created, papers in sample: %d' %df.count())
 
     ########################
     # Adding additional files
-
-    with open(SparkFiles.get("entities.csv"), "r") as infile:
+    _ , entityfile = path.split(args.entities)
+    with open(SparkFiles.get(entityfile), "r") as infile:
         reader = csv.reader(infile, delimiter=';', quotechar='"')
         rows = reader
         entities = {}
@@ -76,6 +75,9 @@ def main(args):
             entity = row[0]
             aliases = row[1].split(",")
             if len(entity.split(" ")) == 2:
+                a2 = aliases[0].split()
+                if len(a2) == 2:
+                    aliases.append(a2[1])
                 entities[entity] = aliases
     all_entities = [a.lower() for a in list(chain.from_iterable(list(entities.values())))]
     logger.info('Entity terms loaded to driver: %d' %len(all_entities))
@@ -83,24 +85,29 @@ def main(args):
     #########################
     # FEATURE ENGINEERING
     logger.info('Initialising transformers and pipeline.')
-    sentTokenizer = SentTokenizer(inputCol="fulltext", outputCol="sentence_list")
-    selector = ColumnSelector(outputCols=["doi", "sentence_list"])
+    sentTokenizer_ab = SentTokenizer(inputCol="abstract", outputCol="sentence_list_ab")
+    sentTokenizer_ft = SentTokenizer(inputCol="fulltext", outputCol="sentence_list_ft")
+    textassembler = StringListAssembler(inputCols=["sentence_list_ab", "sentence_list_ft"], outputCol="sentence_list")
     cexploder = ColumnExploder(inputCol="sentence_list", outputCol="sentences")
     tokenizer = Tokenizer(inputCol="sentences", outputCol="words")
     swremover = StopWordsRemover(inputCol="words", outputCol="filtered")
     bigramer = NGram(inputCol="filtered", outputCol="bigrams", n=2)
     sassembler = StringListAssembler(inputCols=["filtered", "bigrams"], outputCol="raw_features")
-    cv = CountVectorizer(inputCol="raw_features", outputCol="features")
+    selector = ColumnSelector(outputCols=["doi", "sentences", "raw_features"])
+    cv = CountVectorizer(inputCol="raw_features", outputCol="features", minTF=3, minDF=3)
 
     #########################
     # PIPELINE
 
-    pipeline = Pipeline(stages=[sentTokenizer, selector, cexploder, tokenizer, swremover, bigramer, sassembler, cv])
-    pipeline_model = pipeline.fit(df)
+    pipeline = Pipeline(stages=[sentTokenizer_ab, sentTokenizer_ft, textassembler, cexploder, tokenizer, swremover, bigramer, sassembler, selector, cv])
     logger.info('Fitting pipeline model.')
-    result_df = pipeline_model.transform(df)
+    pipeline_model = pipeline.fit(df)
     logger.info('Applying pipeline model.')
+    result_df = pipeline_model.transform(df)
     result_df.cache()
+    if args.debug:
+        result_df.printSchema()
+        result_df.explain(True)
 
     #########################
     # SETUP BROADCAST VARIABLES
@@ -159,7 +166,7 @@ def main(args):
     logger.info('Registering udf_total_count.')
     udf_total_count = udf(total_count, IntegerType())
 
-    train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=['NP'])
+    train_sents = nltk.corpus.conll2000.chunked_sents('train.txt', chunk_types=['VP'])
     chunker = ConsecutiveNPChunker(train_sents)
     C = sc.broadcast(chunker)
 
@@ -172,8 +179,8 @@ def main(args):
         tree = C.value.parse(tagged_sentence)
         semirels = nltk.sem.relextract.tree2semi_rel(tree)
         relations = nltk.sem.relextract.semi_rel2reldict(semirels)
-        # pattern = re.compile('ate|eats|feeds|preys')
-        pattern = re.compile(r'\/VBD$|\/VBD.*\/VBN|\/RB.*\/VB')
+        pattern = re.compile(r'\sinteract|\seat|\sprey|parasiti[sz]|pollinat|\sinfect|spread|\skill')
+        # pattern = re.compile(r'\/VBD$|\/VBD.*\/VBN|\/RB.*\/VB')
         triples = []
         for rel in relations:
             if pattern.search(rel.get('filler')):
@@ -188,31 +195,47 @@ def main(args):
     ##########################
     # PREPARE OUTPUT
 
-    result_df = result_df.select(['doi', 'sentences', 'features']).withColumn('hits', udf_boolean_occurrence(result_df['features']))
-    # output = result_df.select(['doi', 'title', 'features']).withColumn('hits', udf_boolean_occurrence(result_df['features']))
-    logger.info('Getting result_df')
+    result_df = result_df.select('doi', 'sentences', 'features').withColumn('hits', udf_boolean_occurrence(result_df['features']))
+    if args.debug:
+        logger.info('Length of result_df: %d' %result_df.count())
+        result_df.explain(True)
+        result_df.show()
+        result_df.printSchema()
     output = result_df.filter(result_df['hits'] == True)
-    logger.info('Output filtered, number of entries with matches: %d' %output.count())
+    if args.debug:
+        logger.info('Output filtered, number of sentences with matches: %d' %output.count())
+        output.explain(True)
+        output.show()
+        output.printSchema()
     output = output.withColumn('entity_matches', udf_map_sv2entities(output['features']))
-    logger.info('Mapping back to entities.')
+    if args.debug:
+        logger.info('Mapping back to entities.')
+        output.explain(True)
+        output.show()
+        output.printSchema()
     output = output.withColumn('entity_counts', udf_total_count(output['entity_matches']))
-    logger.info('Counting entities.')
+    if args.debug:
+        logger.info('Counting entities.')
+        output.explain(True)
+        output.show()
+        output.printSchema()
     output = output.withColumn('triples', udf_get_triples(output['sentences']))
-    logger.info('Getting triples.')
+    if args.debug:
+        logger.info('Getting triples.')
+        output.explain(True)
+        output.show()
+        output.printSchema()
     output = output.withColumn('triples_counts', udf_total_count(output['triples']))
-    logger.info('Counting triples.')
-    output.cache()
+    if args.debug:
+        logger.info('Counting triples.')
 
     ##########################
     # WRITE OUTPUT
     output = output.select('doi', 'sentences', 'entity_matches', 'entity_counts', 'triples','triples_counts') \
                 .filter(output['entity_counts'] >= int(args.entity_counts)) \
-                .filter(output['triples_counts'] >= int(args.triples_counts)) \
-                .orderBy(['triples_counts'], ascending=[0])
+                .filter(output['triples_counts'] >= int(args.triples_counts))
     logger.info('Writing output to %s.' %args.output)
     output.write.json(args.output)
-
-    logger.info('Final results filtered, number of results: %d' %output.count())
     logger.info('Ending workflow, shutting down.')
     sc.stop()
 
@@ -223,9 +246,9 @@ if __name__ == '__main__':
     parser.add_argument('--entity-counts', dest='entity_counts', help='min_number of entity counts')
     parser.add_argument('--triples-counts', dest='triples_counts', help='min_number of triples counts')
     parser.add_argument('--entities', dest='entities', help='relative or absolute path of the entities file')
-    parser.add_argument('--tagger', dest='tagger', help='relative or absolute path of the tagger file')
     parser.add_argument('--logfile', dest='logfile', help='relative or absolute path of the logfile')
     parser.add_argument('--sample', dest='sample', help='fraction of data to use as sample')
+    parser.add_argument('--debug', dest='debug', help='flag for debug mode, rdds now evaluated greedy', action='store_true')
     parser.add_argument('--awsAccessKeyID', dest='awsAccessKeyID', help='awsAccessKeyID')
     parser.add_argument('--awsSecretAccessKey', dest='awsSecretAccessKey', help='awsSecretAccessKey')
     args = parser.parse_args()
