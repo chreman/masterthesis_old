@@ -25,68 +25,20 @@ class Converter(object):
             style = json.load(infile)
         return style
 
-    def metadata2dict(self, elementlist):
-        d = {}
-        for elem in elementlist:
-            if elem.attrib != {}:
-                if elem.text:
-                    d[next(iter(elem.attrib.values()))] = elem.text
-                else:
-                    d.update(elem.attrib)
-            else:
-                if elem.text:
-                    d[elem.tag] = elem.text
-        return d
-
-    def get_dates(self, article):
-        try:
-            coll_date = article.find(self.style.get("coll_date"))
-            date_coll = coll_date.find('year').text
-        except:
-            date_coll = None
-
-        try:
-            epub_date = article.find(self.style.get("coll_date"))
-            date_epub = "-".join([epub_date.find('year').text, epub_date.find('month').text, epub_date.find('day').text])
-        except:
-            date_epub = None
-        return date_coll, date_epub
-
-    def get_disciplines(self, article):
-        disciplines = []
-        for elem in article.findall(self.style.get("disciplines"))[:50]:
-            discipline = []
-            while elem.find('subj-group'):
-                discipline.append(elem.findtext('subject', ""))
-                elem = elem.find('subj-group')
-                if elem is None:
-                    break
-            #print("-".join(discipline))
-            #"-".join(discipline).split("-"))
-            disciplines.append(discipline)
-        return disciplines
-
     def get_metadata(self, article):
-        meta_journal = self.metadata2dict(article.findall(self.style.get("meta_journal")))
-        meta_article = self.metadata2dict(article.find(self.style.get("meta_article")).getchildren())
-        metadata = dict(meta_journal, **meta_article)
-        date_coll, date_epub = self.get_dates(article)
+        metadata = {}
 
-        # add additional, manual identified metadata
-        if date_coll:
-            metadata["date_coll"] = date_coll
-        if date_epub:
-            metadata["electronicPublicationDate"] = date_epub
-        metadata['title'] = article.findtext('.//article-title', None)
-        metadata['article-subject-type'] = article.findtext('.//article-categories//subj-group[@subj-group-type="heading"]/subject', None)
-        metadata['disciplines'] = self.get_disciplines(article)
-        metadata['keywordList'] = [e.text for e in article.findall(self.style.get('keywordList'))]
+        for md, xp in self.style.items():
+            try:
+                metadata[md] = [e.text for e in article.findall(xp)]
+            except:
+                metadata[md] = []
         metadata['cprojectID'] = metadata.get('pmcid')
         return metadata
 
     def get_texts(self, article):
-        ps = article.findall(self.style.get("fulltext"))
-        ps_abs = article.findall(self.style.get("abstract"))
+        ps = article.findall(".//body//p")
+        ps_abs = article.findall(".//abstract//p")
         text = " ".join("".join(p.itertext()) for p in ps)
         text_abs = " ".join("".join(p.itertext()) for p in ps_abs)
         return {"fulltext":text, "abstract":text_abs}
@@ -94,9 +46,9 @@ class Converter(object):
     def create_json(self, article):
         metadata = self.get_metadata(article)
         texts = self.get_texts(article)
-        article_json = dict(metadata, **texts)
-        article_json = {k.split("}")[1] if k.startswith("{") else k:v for k,v in article_json.items()} # filter out xml-namespaces
-        article_json = {k:v for k,v in article_json.items() if not "/" in k} # filter out urls and dois
+        article_json = {}
+        article_json.update(metadata)
+        article_json.update(texts)
         return article_json
 
     def corexml2json(self, xmlfilepath):
